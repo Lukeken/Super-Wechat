@@ -253,7 +253,7 @@ class Super_Wechat {
 			foreach($_POST as $key => $value) {
 				//in_array( $key, array("_wpnonce", "_wp_http_referer") )
 				if( preg_match( '/^_/', $key) ||
-					in_array( $key, array("submit") ) ) continue;
+					in_array( $key, array("submit", "ajaxurl") ) ) continue;
 
 				$temp_values[$key] = $value;
 			}

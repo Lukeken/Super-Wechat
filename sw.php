@@ -12,6 +12,6 @@ foreach( $settings["modules"] as $module ) {
 	$$module = new $current_class( $wechat, $settings );
 }
 
-$wechat->validate();
+$wechat->validate(true);
 $wechat->process();
 ?>

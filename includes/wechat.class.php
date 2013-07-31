@@ -155,9 +155,6 @@ class Wechat {
 
 	function process() {
 
-		echo "calling process";
-		var_dump( $this->callback );
-
 		$result_data;
 
 		//Auto Skips Empty Ones

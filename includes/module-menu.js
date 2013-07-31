@@ -8,9 +8,9 @@
 			$menu.val() !== "" ) {
 
 			$.post($("#ajaxurl").val(), {
-				action 	: "wechat_menu",
 				menu 	: $menu.val(),
 				token 	: $("#access_token").val(),
+				action 	: "wechat_menu",
 			}, function(response) {
 				$menu.parent("td").append(response);
 			});
