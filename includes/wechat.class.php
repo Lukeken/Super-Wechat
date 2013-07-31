@@ -21,6 +21,7 @@ class Wechat {
 
 	function __construct( $options = array() ) {
 
+		//$this->request 		= $this->parseData();
 		$this->request 		= $_REQUEST;
 		$this->options 		= shortcode_atts( array(
 			"token"		=> "",
@@ -76,13 +77,12 @@ class Wechat {
 			"
 		);
 		$this->callback 	= array();
-		$this->parsedData 	= $this->parseData();
 
 	}
 
 	function validate( $return = false ) {
 
-		$echoStr = $this->request["echostr"];
+		$echoStr = $this->request["echoStr"];
 
 		if( $return && $echoStr ) {
 			return $this->checkSignature() ? $echoStr : false;
@@ -99,12 +99,6 @@ class Wechat {
 
 		$args = array("signature", "timestamp", "nonce");
 
-		foreach( $args as $arg ) {
-			if( !isset( $this->request[$arg] ) ) return false;
-			$$arg = $this->request[$arg];
-		}
-
-		/*
 		foreach ($args as $arg) {
 			if ( !isset($this->request[$arg]) ) return false;
 		}
@@ -112,10 +106,10 @@ class Wechat {
 		$signature 	= $this->request["signature"];
 		$timestamp 	= $this->request["timestamp"];
 		$nonce 		= $this->request["nonce"];
-		*/
 
 		$tmpArr = array($this->options["token"], $timestamp, $nonce);
-		$tmpStr = implode( sort( $tmpArr ) );
+		sort( $tmpArr );
+		$tmpStr = implode( $tmpArr );
 		$tmpStr = sha1( $tmpStr );
 
 		return ( $tmpStr == $signature );
@@ -128,9 +122,11 @@ class Wechat {
 
 	  	if( !empty( $postStr ) ) {
 
+	  		/* For Testing Purpose */
 	  		$postObj = (array) simplexml_load_string( $postStr, 'SimpleXMLElement', LIBXML_NOCDATA );
 	  		$postObj = json_encode( $postObj );
 	  		$postObj = json_decode( $postObj, 1 );
+	  		
 	  		return $postObj;
 
 	  	} else {
@@ -141,7 +137,7 @@ class Wechat {
 
 	}
 
-	function enqueque( $callback, $index = false ) {
+	function enqueue( $callback, $index = false ) {
 
 		if( !empty($index) ) {
 
@@ -159,28 +155,31 @@ class Wechat {
 
 	function process() {
 
-		$resultData;
+		echo "calling process";
+		var_dump( $this->callback );
+
+		$result_data;
 
 		//Auto Skips Empty Ones
 		foreach( $this->callback as $callback ) {
 
 			//Process callback associated. First tangible result wins
-			$resultData = call_user_func( $callback );
-			if( !empty( $resultData ) ) break;
+			$result_data = call_user_func( $callback );
+			if( !empty( $result_data ) ) break;
 
 		}
 
 		//Default to return the message without callback
-		if( empty( $resultData ) ) {
+		if( empty( $result_data ) ) {
 
-			$resultData = $this->parsedData;
+			$result_data = $this->request;
 
 		}
 
 		//Switch sender/receiver
-		list( $resultData["FromUserName"], $resultData["ToUserName"] ) = array( $resultData["ToUserName"], $resultData["FromUserName"] );
+		list( $result_data["FromUserName"], $result_data["ToUserName"] ) = array( $result_data["ToUserName"], $result_data["FromUserName"] );
 
-		return $this->composeMsg( $resultData );
+		return $this->composeMsg( $result_data );
 
 	}	
 
@@ -192,13 +191,13 @@ class Wechat {
 
 	  	switch ( $data["MsgType"] ) {
 	  		case 'text':
-	  			$output = sprintf( $this->template["text"], $this->request["ToUserName"], $this->request["FromUserName"], $time, $data["Content"], $flag );
+	  			$output = sprintf( $this->template["text"], $data["ToUserName"], $data["FromUserName"], $time, $data["Content"], $flag );
 	  			break;
 	  		case 'music':
-	  			$output = sprintf( $this->template["music"], $this->request["ToUserName"], $this->request["FromUserName"], $time, $data["Title"], $data["Description"], $data["MusicUrl"], $data["HQMusicUrl"], $flag );
+	  			$output = sprintf( $this->template["music"], $data["ToUserName"], $data["FromUserName"], $time, $data["Title"], $data["Description"], $data["MusicUrl"], $data["HQMusicUrl"], $flag );
 	  			break;
 	  		case 'news':
-	  			$output = sprintf( $this->template["newsBegin"], $this->request["ToUserName"], $this->request["FromUserName"], $time, $data["ArticleCount"] );
+	  			$output = sprintf( $this->template["newsBegin"], $data["ToUserName"], $data["FromUserName"], $time, $data["ArticleCount"] );
 	  			for($i = 0; $i < $data["ArticleCount"]; $i += 1) {
 	  				$output .= sprintf($this->template["newsItem"], $data["items"][$i]["Title"], $data["items"][$i]["Description"], $data["items"][$i]["PicUrl"], $data["items"][$i]["Url"]);
 	  			}
@@ -206,13 +205,13 @@ class Wechat {
 	  			break;
 	  	}
 
-	  	return $output;
+	  	echo $output;
 
 	}
 
 	function getData( $part ) {
 
-		return strtolower( $this->parsedData[$part] );
+		return strtolower( $this->request[$part] );
 
 	}
 

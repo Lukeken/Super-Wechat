@@ -6,9 +6,9 @@ class Wechat_repost {
 		$this->wechat 	= $wechat;
 		$this->settings = $settings;
 
-		if( "link" == $this->wechat->getData["MsgType"] ) {
+		if( "link" == $this->wechat->getData("MsgType") ) {
 
-			$this->wechat->enqueque( array($this, "callback"), 10 );
+			$this->wechat->enqueue( array($this, "callback"), 10 );
 
 		}
 
@@ -17,7 +17,7 @@ class Wechat_repost {
 	function callback() {
 
 		$token 		= "96866628601c7e4026d6a4088b88226fb0689721";
-		$parse_url 	= "https://readability.com/api/content/v1/parser?token={$token}&url=" . urlencode( $this->wechat->getData["Url"] );
+		$parse_url 	= "https://readability.com/api/content/v1/parser?token={$token}&url=" . urlencode( $this->wechat->getData( "Url" ) );
 		$post_data 	= wp_remote_retrieve_body( wp_remote_get( $parse_url ) );
 
 		if( is_wp_error($response) || !isset($response['body']) ) {
@@ -28,10 +28,10 @@ class Wechat_repost {
 
 			$post_data 		= json_decode( $post_data );
 			$result_data 	= array(
-				"FromUserName"	=> $this->wechat->getData["FromUserName"],
-				"ToUserName"	=> $this->wechat->getData["ToUserName"],
+				"FromUserName"	=> $this->wechat->getData( "FromUserName" ),
+				"ToUserName"	=> $this->wechat->getData( "ToUserName" ),
 				"MsgType"		=> "text",
-				"Content"		=> $this->settings["feedback"];
+				"Content"		=> $this->settings["feedback"]
 			);
 			$post_id 		= wp_insert_post( array(
 				"post_category"	=> $this->settings["repost_category"],

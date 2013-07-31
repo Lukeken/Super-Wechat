@@ -6,9 +6,9 @@ class Wechat_reply {
 		$this->wechat 	= $wechat;
 		$this->settings = $settings;
 
-		if( "text" == $this->wechat->getData["MsgType"] ) {
+		if( "text" == $this->wechat->getData( "MsgType" ) ) {
 
-			$this->wechat->enqueque( array( $this, "callback" ), 10 );
+			$this->wechat->enqueue( array( $this, "callback" ), 10 );
 
 		}
 
@@ -34,13 +34,32 @@ class Wechat_reply {
 
 		if( !empty( $current_index ) ) {
 
-			$allData 			= $this->wechat->parsedData;
+			$allData 			= $this->wechat->request;
 			$allData["Content"]	= $receive[$current_index];
 			return $allData;
 
 		}
 
 		return false;
+
+	}
+
+}
+
+class Wechat_reply_admin {
+
+	function __construct( $settings ) {
+
+		$this->settings = $settings;
+		$this->settings_option_name 	= "super_wechat_settings";
+
+		add_action( "admin_menu", array($this, "admin_menu_callback") );
+
+	}
+
+	function admin_menu_callback() {
+
+		add_options_page( __('Super Wechat Concierge', "super_wechat"), __('Super Wechat Concierge', "super_wechat"), 'manage_options', 'super-wechat-reply', array($this, "options_page_callback") );
 
 	}
 

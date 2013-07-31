@@ -23,23 +23,37 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-/*
-	TODO:
-	1- wechat interface
-		- Menu Module
-	2- wordpress interface
-		- auto-replier matrix
- */
+
+global $super_wechat_sections;
+$super_wechat_sections = array(
+	"main_configuration"	=> array(
+		"label"		=> __("Super Wechat Configuration", "super_wechat"),
+	),
+	"menu_configuration"	=> array(
+		"label" 	=> __("Module - Menu Configuration", "super_wechat"),
+		"js"		=> array("module-menu.js"),
+		"inline"	=> true,
+	),
+	"repost_configuration"	=> array(
+		"label" 	=> __("Module - Repost By Link Configuration", "super_wechat"),
+	),
+	/*
+	"reply_configuration"	=> array(
+		"label" 	=> __("Module - Auto Reply Configuration", "super_wechat"),
+	)*/
+);
 
 class Super_Wechat {
 
 	function __construct() {
 
+		global $super_wechat_sections;
+
 		$menus = get_terms( 'nav_menu', array( 'hide_empty' => true ) );
 		$menu_options = array();
 		foreach( $menus as $menu ) {
 			array_push( $menu_options, array(
-				"id"	=> $menu->name,
+				"id"	=> $menu->term_id,
 				"label"	=> $menu->name
 			) );
 		}
@@ -76,12 +90,7 @@ class Super_Wechat {
 		unset($authors);
 
 
-		$this->sections = array(
-			"main_configuration"	=> __("Super Wechat Configuration", "super_wechat"),
-			"menu_configuration"	=> __("Module - Menu Configuration", "super_wechat"),
-			"repost_configuration"	=> __("Module - Repost By Link Configuration", "super_wechat"),
-			"reply_configuration"	=> __("Module - Auto Reply Configuration", "super_wechat"),
-		);
+		$this->sections = $super_wechat_sections;
 
 		$this->options 	= array(
 			array(
@@ -114,10 +123,11 @@ class Super_Wechat {
 						"id"	=> "menu",
 						"label"	=> __("Menu", "super_wechat")
 					),
+					/*
 					array(
 						"id"	=> "reply",
 						"label"	=> __("Auto Reply", "super_wechat")
-					),
+					),*/
 					array(
 						"id"	=> "repost",
 						"label"	=> __("Repost By Link", "super_wechat")
@@ -134,13 +144,14 @@ class Super_Wechat {
 				"section"	=> "menu_configuration",
 				"default"	=> "",
 			),
+			/*
 			array(
 				"id"		=> "reply",
 				"type"		=> "matrix",
 				"label"		=> __("Auto Reply Messages", "super_wechat"),
 				"section"	=> "reply_configuration",
 				"default"	=> array()
-			),
+			),*/
 			array(
 				"id"		=> "repost_category",
 				"type"		=> "dropdown",
@@ -190,15 +201,42 @@ class Super_Wechat {
 
 
 		add_action( "admin_menu", array($this, "admin_menu_callback") );
+		add_action( "admin_enqueue_scripts", array($this, "admin_enqueue_scripts_callback") );
 
 		load_plugin_textdomain( "super_wechat", false, plugin_dir_path( __FILE__ ) . 'languages/' );
 
+		register_deactivation_hook( __FILE__, array($this, "uninstall") );
+
+	}
+
+	function uninstall() {
+
+		delete_option( $this->settings_option_name );
 
 	}
 
 	function admin_menu_callback() {
 
 		add_options_page( __('Super Wechat', "super_wechat"), __('Super Wechat', "super_wechat"), 'manage_options', 'super-wechat', array($this, "options_page_callback") );
+
+	}
+
+	function admin_enqueue_scripts_callback() {
+
+		//Go through each section to enqueue JS
+		foreach( $this->sections as $id => $section ) {
+
+			if( isset( $section["js"] ) ) {
+
+				foreach( $section["js"] as $one_script ) {
+
+					wp_enqueue_script( $one_script, plugins_url( "includes/{$one_script}", __FILE__ ), array( "jquery" ), false, true );
+
+				}
+				
+			}
+
+		}
 
 	}
 
@@ -214,7 +252,8 @@ class Super_Wechat {
 			//Make Update
 			foreach($_POST as $key => $value) {
 				//in_array( $key, array("_wpnonce", "_wp_http_referer") )
-				if( preg_match( '/^_/', $key) ) continue;
+				if( preg_match( '/^_/', $key) ||
+					in_array( $key, array("submit") ) ) continue;
 
 				$temp_values[$key] = $value;
 			}
@@ -224,20 +263,33 @@ class Super_Wechat {
 		}
 
 		?>
-		<table class="form-table">
-			<form method="POST">
+		<form method="POST">
+			<table class="form-table">
+				<input type="hidden" id="ajaxurl" name="ajaxurl" value="<?php echo admin_url('admin-ajax.php'); ?>">
 			<?php
 			wp_nonce_field();
 
-			foreach( $this->sections as $id => $label ) {
+			foreach( $this->sections as $id => $section ) {
 
 				$section_name = split("_", $id);
+
 				if( "main_configuration" == $id ||
 					in_array( $section_name[0], $temp_values["modules"] ) ) {
 
+					if( isset( $section["inline"] ) && 
+						!empty( $section["inline"] ) ) {
+
+						$module 		= $section_name[0];
+						$current_class 	= "Wechat_" . $module . "_admin";
+
+						include_once( "includes/module-{$module}.php" );
+						$$module 		= new $current_class( $this->options );
+
+					}
+
 					?>
 					<tr>
-						<th colspan="2"><h2><?php echo $label; ?></h2></th>
+						<th colspan="2"><h2><?php echo $section["label"]; ?></h2></th>
 					</tr>
 
 					<?php
@@ -274,7 +326,7 @@ class Super_Wechat {
 							} else if( "dropdown" == $option["type"] ) {
 
 								?>
-								<select name="<?php echo $option["id"]; ?>">
+								<select name="<?php echo $option["id"]; ?>" id="<?php echo $option["id"]; ?>">
 									<option value=""></option>
 								<?php
 								foreach( $option["values"] as $value ) {
@@ -288,16 +340,6 @@ class Super_Wechat {
 								}
 								?>
 								</select>
-								<?php
-
-							} else if( "matrix" == $option["type"] ) {
-
-								?>
-								<button class="button matrix_btn"><?php _e("Add New Rule", "super_wechat"); ?></button>
-								<table class="form-table matrix">
-									<tbody>
-									</tbody>
-								</table>
 								<?php
 
 							}
@@ -322,9 +364,9 @@ class Super_Wechat {
 			}
 
 			?>
-			<tr><td colspan="2"><?php submit_button(); ?></td></tr>
-			</form>
-		</table>
+				<tr><td colspan="2"><?php submit_button(); ?></td></tr>
+			</table>
+		</form>
 		<?php
 
 	}
