@@ -15,11 +15,11 @@ class Wechat_menu_admin {
 		$this->api 		= "https://api.weixin.qq.com/cgi-bin/menu/%s?access_token=%s";
 		$this->settings_option_name 	= "super_wechat_settings";
 
-		add_action( "wp_ajax_wechat_menu", "wp_ajax_wechat_menu_callback" );
+		add_action( "wp_ajax_wechat_menu", array($this, "wp_ajax_wechat_menu_callback") );
 
 	}
 
-	function wechat_menu_callback() {
+	function wp_ajax_wechat_menu_callback() {
 
 		$menu 			= $_POST["menu"];
 		$token 			= $_POST["token"];
@@ -40,7 +40,7 @@ class Wechat_menu_admin {
 				if( "0" == $menu_item->menu_item_parent ) {
 
 					//Parent Level
-					array_push( $output->button, $temp_item );
+					array_push( $output->button, $tmp_item );
 
 				} else {
 
@@ -83,7 +83,7 @@ class Wechat_menu_admin {
 			"ok" == strtolower( $post_data->errmsg ) ) {
 			echo __("Action Succeed", "super_wechat");
 		} else {
-			echo __("Action Failed With Code %s", "super_wechat");
+			echo sprintf( __("Action Failed With Code %s", "super_wechat"), $post_data->errcode );
 		}
 
 		die();

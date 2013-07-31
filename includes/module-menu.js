@@ -12,7 +12,8 @@
 				token 	: $("#access_token").val(),
 				action 	: "wechat_menu",
 			}, function(response) {
-				$menu.parent("td").append(response);
+				console.log(response);
+				//$menu.parent("td").append(response);
 			});
 
 		}

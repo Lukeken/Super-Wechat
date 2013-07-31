@@ -200,6 +200,7 @@ class Super_Wechat {
 		$this->settings_option_name 	= "super_wechat_settings";
 
 
+		add_action( "init", array($this, "init_callback") );
 		add_action( "admin_menu", array($this, "admin_menu_callback") );
 		add_action( "admin_enqueue_scripts", array($this, "admin_enqueue_scripts_callback") );
 
@@ -212,6 +213,27 @@ class Super_Wechat {
 	function uninstall() {
 
 		delete_option( $this->settings_option_name );
+
+	}
+
+	function init_callback() {
+
+		foreach( $this->sections as $id => $section ) {
+
+			$section_name = split("_", $id);
+
+			if( isset( $section["inline"] ) && 
+				!empty( $section["inline"] ) ) {
+
+				$module 		= $section_name[0];
+				$current_class 	= "Wechat_" . $module . "_admin";
+
+				include_once( "includes/module-{$module}.php" );
+				$$module 		= new $current_class( $this->options );
+
+			}
+
+		}
 
 	}
 
@@ -244,8 +266,7 @@ class Super_Wechat {
 
 		//Let's make a copy instead so we can keep popping!
 		$temp_options 	= $this->options;
-		$temp_values 	= get_option( $this->settings_option_name );
-		$temp_values	= !empty( $temp_values ) ? $temp_values : $this->default;
+		$temp_values 	= get_option( $this->settings_option_name, $this->default );
 
 		if( !empty( $_POST["_wpnonce"] ) ) {
 
@@ -275,17 +296,6 @@ class Super_Wechat {
 
 				if( "main_configuration" == $id ||
 					in_array( $section_name[0], $temp_values["modules"] ) ) {
-
-					if( isset( $section["inline"] ) && 
-						!empty( $section["inline"] ) ) {
-
-						$module 		= $section_name[0];
-						$current_class 	= "Wechat_" . $module . "_admin";
-
-						include_once( "includes/module-{$module}.php" );
-						$$module 		= new $current_class( $this->options );
-
-					}
 
 					?>
 					<tr>
