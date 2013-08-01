@@ -193,7 +193,7 @@ class Super_Wechat {
 
 		$this->default = array();
 
-		foreach ($this->options as $option) {
+		foreach( $this->options as $option ) {
 			$this->default[$option["id"]] = $option["default"];
 		}
 
@@ -267,12 +267,12 @@ class Super_Wechat {
 		//Let's make a copy instead so we can keep popping!
 		$temp_options 	= $this->options;
 		$temp_values 	= get_option( $this->settings_option_name, $this->default );
+		$debug_arr 		= array();
 
 		if( !empty( $_POST["_wpnonce"] ) ) {
 
 			//Make Update
 			foreach($_POST as $key => $value) {
-				//in_array( $key, array("_wpnonce", "_wp_http_referer") )
 				if( preg_match( '/^_/', $key) ||
 					in_array( $key, array("submit", "ajaxurl") ) ) continue;
 
