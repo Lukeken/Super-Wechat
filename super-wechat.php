@@ -90,8 +90,6 @@ class Super_Wechat {
 		unset($authors);
 
 
-		$this->sections = $super_wechat_sections;
-
 		$this->options 	= array(
 			array(
 				"id"		=> "token",
@@ -191,16 +189,19 @@ class Super_Wechat {
 			),
 		);
 
-		$this->default = array();
-
+		$this->default 	= array();
 		foreach( $this->options as $option ) {
 			$this->default[$option["id"]] = $option["default"];
 		}
 
 		$this->settings_option_name 	= "super_wechat_settings";
-
+		$this->sections = $super_wechat_sections;
+		$this->settings = get_option( $this->settings_option_name );
+		$this->settings = !empty( $this->settings ) ? $this->settings : $this->default;
+		$this->opt_page = "super-wechat";
 
 		add_action( "init", array($this, "init_callback") );
+		add_action( "admin_init", array($this, "admin_init_callback") );
 		add_action( "admin_menu", array($this, "admin_menu_callback") );
 		add_action( "admin_enqueue_scripts", array($this, "admin_enqueue_scripts_callback") );
 
@@ -213,6 +214,11 @@ class Super_Wechat {
 	function uninstall() {
 
 		delete_option( $this->settings_option_name );
+
+		foreach( $this->options as $index => $option ) {
+			unregister_setting( $this->opt_page, $option["id"] );
+			delete_option( $option["id"] );
+		}
 
 	}
 
@@ -237,9 +243,91 @@ class Super_Wechat {
 
 	}
 
+	function admin_init_callback() {
+
+		//Get Ready for some popping
+		$temp_options 	= $this->options;
+
+		foreach( $this->sections as $id => $section ) {
+
+			$section_name = split("_", $id);
+
+			if( "main_configuration" == $id ||
+				in_array( $section_name[0], $this->settings["modules"] ) ) {
+
+				add_settings_section( $id, $section["label"], false, $this->opt_page );
+
+				foreach( $temp_options as $index => $option ) {
+
+					if( $id == $option["section"] ) {
+
+						register_setting( $this->opt_page, $option["id"], "esc_attr" );
+
+						add_settings_field( $option["id"], $option["label"], array($this, "field_callback"), $this->opt_page, $option["section"], $option );
+
+						unset( $temp_options[$index] );
+
+					}
+
+				}
+
+			}
+
+		}
+
+	}
+
+	function field_callback( $option ) {
+
+		$current_value = get_option( $option["id"], $option["default"] );
+
+		if( "text" == $option["type"] ) {
+
+			?>
+			<input type="text" name="<?php echo $option["id"]; ?>" id="<?php echo $option["id"]; ?>" value="<?php echo $current_value; ?>">
+			<?php
+
+		} if( "checkbox" == $option["type"] ) {
+
+			foreach( $option["values"] as $value ) {
+				?>
+				<input
+					type="checkbox"
+					name="<?php echo $option["id"] . "[{$value['id']}]"; ?>"
+					value="1"
+					class="checkbox"
+					<?php 
+						if( in_array( $value["id"], $current_value ) ) echo 'checked="checked"'; ?>
+				> <?php echo $value["label"]; ?>
+				<?php
+			}
+
+		} else if( "dropdown" == $option["type"] ) {
+
+			?>
+			<select name="<?php echo $option["id"]; ?>" id="<?php echo $option["id"]; ?>">
+				<option value=""></option>
+			<?php
+			foreach( $option["values"] as $value ) {
+				?>
+				<option
+					value="<?php echo $value["id"]; ?>"
+					<?php selected( $value["id"], $current_value ); ?>
+				><?php echo $value["label"]; ?></option>
+				<?php
+			}
+			?>
+			</select>
+			<?php
+
+		}
+
+
+	}
+
 	function admin_menu_callback() {
 
-		add_options_page( __('Super Wechat', "super_wechat"), __('Super Wechat', "super_wechat"), 'manage_options', 'super-wechat', array($this, "options_page_callback") );
+		add_options_page( __('Super Wechat', "super_wechat"), __('Super Wechat', "super_wechat"), 'manage_options', $this->opt_page, array($this, "options_page_callback") );
 
 	}
 
@@ -263,125 +351,26 @@ class Super_Wechat {
 	}
 
 	function options_page_callback() {
-
-		//Let's make a copy instead so we can keep popping!
-		$temp_options 	= $this->options;
-		$temp_values 	= get_option( $this->settings_option_name, $this->default );
-		$debug_arr 		= array();
-
-		if( !empty( $_POST["_wpnonce"] ) ) {
-
-			//Make Update
-			foreach($_POST as $key => $value) {
-				if( preg_match( '/^_/', $key) ||
-					in_array( $key, array("submit", "ajaxurl") ) ) continue;
-
-				$temp_values[$key] = $value;
-			}
-
-			update_option( $this->settings_option_name, $temp_values );
-
-		}
-
 		?>
-		<form method="POST">
-			<table class="form-table">
+		<div class="wrap">  
+			<div class="icon32" id="icon-options-general"></div>  
+			<form action="options.php" method="post">
 				<input type="hidden" id="ajaxurl" name="ajaxurl" value="<?php echo admin_url('admin-ajax.php'); ?>">
-			<?php
-			wp_nonce_field();
+				<?php
+					settings_fields( $this->opt_page );
 
-			foreach( $this->sections as $id => $section ) {
+					do_settings_sections( $this->opt_page );
 
-				$section_name = split("_", $id);
-
-				if( "main_configuration" == $id ||
-					in_array( $section_name[0], $temp_values["modules"] ) ) {
-
-					?>
-					<tr>
-						<th colspan="2"><h2><?php echo $section["label"]; ?></h2></th>
-					</tr>
-
-					<?php
-
-					foreach( $temp_options as $index => $option ) {
-
-						if( $id == $option["section"] ) {
-
-							//Belongs to this section - Begin Processing
-							?>
-							<tr>
-								<th><label for="<?php echo $option["id"]; ?>"><?php echo $option["label"]; ?></label></th>
-								<td>
-							<?php
-
-							if( "text" == $option["type"] ) {
-								?>
-								<input type="text" name="<?php echo $option["id"]; ?>" id="<?php echo $option["id"]; ?>" value="<?php echo $temp_values[$option["id"]] ?>">
-								<?php
-							} else if( "checkbox" == $option["type"] ) {
-
-								foreach( $option["values"] as $value ) {
-									?>
-									<input
-										type="checkbox"
-										name="<?php echo $option["id"]; ?>[]"
-										value="<?php echo $value["id"]; ?>"
-										<?php 
-											if( in_array( $value["id"], $temp_values[$option["id"]] ) ) echo 'checked="checked"'; ?>
-									> <?php echo $value["label"]; ?>
-									<?php
-								}
-
-							} else if( "dropdown" == $option["type"] ) {
-
-								?>
-								<select name="<?php echo $option["id"]; ?>" id="<?php echo $option["id"]; ?>">
-									<option value=""></option>
-								<?php
-								foreach( $option["values"] as $value ) {
-									?>
-									<option
-										value="<?php echo $value["id"]; ?>"
-										<?php selected( $value["id"], $temp_values[$option["id"]] ); ?>
-									><?php echo $value["label"]; ?></option>
-
-									<?php
-								}
-								?>
-								</select>
-								<?php
-
-							}
-
-							?>
-								</td>
-							</tr>
-							<?php
-
-							//Pop the option
-							unset( $option[$index] );
-
-						}
-
-						//Let's move on
-						continue;
-
-					}
-
-				}
-
-			}
-
-			?>
-				<tr><td colspan="2"><?php submit_button(); ?></td></tr>
-			</table>
-		</form>
+					submit_button();
+				?>
+			</form>
+		</div><!-- wrap -->  
 		<?php
-
 	}
 
 }
 
-$wechat = new Super_Wechat();
+if( is_admin() ) {
+	$wechat = new Super_Wechat();
+}
 ?>
